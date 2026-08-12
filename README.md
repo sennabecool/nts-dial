@@ -38,4 +38,6 @@ Open NTS Dial.
 
 v1.0
 
+Disclaimer: This app has been entirely vibe coded with Codex 5.6.
+
 NTS Dial is an independent project and is not affiliated with NTS Radio.
