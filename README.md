@@ -11,7 +11,7 @@ A compact macOS menu bar player for NTS Radio inspired by the [Atonemo NTS Radio
 ## Features
 
 - Live NTS 1 and NTS 2 playback
-- 16 Infinite Mixtape stations
+- 16 Infinite Mixtape stations playback
 - Menu bar controls and Now Playing integration
 - Keyboard media key support for play and pause controls
 - Persistent station selection with audio and visual feedback
