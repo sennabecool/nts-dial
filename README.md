@@ -1,6 +1,12 @@
+<img width="128" height="128" alt="NTS-Dial" src="https://github.com/user-attachments/assets/dcfe39e5-cd16-4bef-ac1e-73f4b6abccd7" />
+
+
 # NTS Dial
 
 A compact macOS menu bar player for NTS Radio. Tune into NTS 1, NTS 2, or the Infinite Mixtapes from a tactile SwiftUI dial.
+
+<img width="1406" height="1046" alt="CleanShot 2026-08-12 at 12 00 57" src="https://github.com/user-attachments/assets/7c322c2d-9595-4cee-bdf4-f89db9305258" />
+
 
 ## Features
 
