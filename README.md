@@ -38,6 +38,11 @@ Open NTS Dial.
 
 v1.0
 
-Disclaimer: This app has been entirely vibe coded with Codex 5.6.
+## Roadmap
 
-NTS Dial is an independent project and is not affiliated with NTS Radio.
+- Widgets ! Already designed (small, medium, large), to implement with WidgetKit, when I have the time. ASAP. 
+- iOS port... Only if I can somehow get a greenlight from NTS & Atonemo (because I use their branding & designs after all). On hold.
+
+Disclaimer: This app has been entirely vibe coded with OpenAi Codex, 5.6 models. 
+
+NTS Dial is an independent personal project and is not affiliated with NTS Radio or Atonemo. 
