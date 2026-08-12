@@ -3,7 +3,7 @@
 
 # NTS Dial
 
-A compact macOS menu bar player for NTS Radio. Tune into NTS 1, NTS 2, or the Infinite Mixtapes from a tactile SwiftUI dial.
+A compact macOS menu bar player for NTS Radio inspired by the [Atonemo NTS Radio Player]([https://example.com](https://shop.nts.live/products/atonemo-nts-radio-player)). Tune into NTS 1, NTS 2, or the Infinite Mixtapes from a tactile SwiftUI dial.
 
 <img width="1406" height="1046" alt="CleanShot 2026-08-12 at 12 00 57" src="https://github.com/user-attachments/assets/7c322c2d-9595-4cee-bdf4-f89db9305258" />
 
