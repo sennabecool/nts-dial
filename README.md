@@ -31,7 +31,7 @@ Open `NTS Dial.xcodeproj` in Xcode, select the **NTS Dial** scheme, and run the 
 - Unzip the file.
 - Move NTS Dial.app to your Applications folder.
 - Open NTS Dial.
-- If macOS blocks the app because "the developer cannot be verified", try opening it once, then go to System Settings → Privacy & Security, scroll down, click Open Anyway, and confirm by clicking Open.
+- If macOS blocks the app because "the developer cannot be verified", go to System Settings → Privacy & Security, scroll down, click Open Anyway, and confirm by clicking Open.
 
 ## Version
 
