@@ -74,6 +74,10 @@ final class RadioPlayer: ObservableObject {
     private var wheelMotionTickTask: Task<Void, Never>?
     private var playbackTimeoutTask: Task<Void, Never>?
 
+    var routingPlayer: AVPlayer {
+        player
+    }
+
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
 

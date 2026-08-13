@@ -349,7 +349,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.1;
+				MARKETING_VERSION = 1.2;
 				PRODUCT_BUNDLE_IDENTIFIER = "cbnns.NTS-Dial";
 				PRODUCT_NAME = "NTS Dial";
 				REGISTER_APP_GROUPS = YES;
@@ -384,7 +384,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.1;
+				MARKETING_VERSION = 1.2;
 				PRODUCT_BUNDLE_IDENTIFIER = "cbnns.NTS-Dial";
 				PRODUCT_NAME = "NTS Dial";
 				REGISTER_APP_GROUPS = YES;

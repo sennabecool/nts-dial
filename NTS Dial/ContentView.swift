@@ -1,3 +1,4 @@
+import AVKit
 import SwiftUI
 
 private enum BundledImageCache {
@@ -25,6 +26,10 @@ private enum BundledImageCache {
 struct ContentView: View {
     @EnvironmentObject private var radioPlayer: RadioPlayer
 
+    private static let appVersion = Bundle.main.object(
+        forInfoDictionaryKey: "CFBundleShortVersionString"
+    ) as? String ?? "Unknown"
+
     var body: some View {
         HStack(spacing: 2) {
             VStack(spacing: 2) {
@@ -47,6 +52,16 @@ struct ContentView: View {
             RoundedRectangle(cornerRadius: 14)
                 .strokeBorder(Color(red: 0.11, green: 0.11, blue: 0.12), lineWidth: 2)
                 .allowsHitTesting(false)
+        }
+        .contextMenu {
+            Button("Version \(Self.appVersion)") {}
+                .disabled(true)
+
+            Divider()
+
+            Button("Quit NTS Dial", role: .destructive) {
+                radioPlayer.shutdown()
+            }
         }
     }
 }
@@ -669,20 +684,9 @@ private struct MixtapeZone: View {
             .help(isEngaged ? "Stop \(radioPlayer.selectedMixtape.displayName)" : "Play \(radioPlayer.selectedMixtape.displayName)")
             .accessibilityLabel(isEngaged ? "Stop \(radioPlayer.selectedMixtape.displayName)" : "Play \(radioPlayer.selectedMixtape.displayName)")
 
-            Button {
-                radioPlayer.shutdown()
-            } label: {
-                HoverPowerIcon()
-                    .frame(width: 30, height: 30)
-                    .contentShape(Circle())
-            }
-            .buttonStyle(.plain)
-            .onHover { hovering in
-                if hovering { NSCursor.pointingHand.set() } else { NSCursor.arrow.set() }
-            }
-            .help("Quit NTS Dial")
-            .accessibilityLabel("Quit NTS Dial")
-            .position(x: 331, y: 331)
+            AirPlayRoutePicker(player: radioPlayer.routingPlayer)
+                .frame(width: 30, height: 30)
+                .position(x: 331, y: 331)
         }
         .frame(width: 358, height: 358)
         .background(
@@ -1008,24 +1012,32 @@ private enum RadioDialInteraction: Equatable {
     }
 }
 
-private struct HoverPowerIcon: NSViewRepresentable {
-    func makeNSView(context: Context) -> HoverPowerImageView {
-        HoverPowerImageView()
+private struct AirPlayRoutePicker: NSViewRepresentable {
+    let player: AVPlayer
+
+    func makeNSView(context: Context) -> AirPlayRoutePickerView {
+        let routePicker = AirPlayRoutePickerView()
+        routePicker.player = player
+        return routePicker
     }
 
-    func updateNSView(_ nsView: HoverPowerImageView, context: Context) {}
+    func updateNSView(_ nsView: AirPlayRoutePickerView, context: Context) {
+        if nsView.player !== player {
+            nsView.player = player
+        }
+    }
 }
 
-private final class HoverPowerImageView: NSImageView {
+private final class AirPlayRoutePickerView: AVRoutePickerView {
     private var trackingArea: NSTrackingArea?
+    private var isHovering = false
 
     init() {
         super.init(frame: .zero)
-        image = NSImage(systemSymbolName: "power", accessibilityDescription: nil)?
-            .withSymbolConfiguration(.init(pointSize: 16, weight: .semibold))
-        contentTintColor = .white
-        imageScaling = .scaleProportionallyDown
-        alphaValue = 0.24
+        isRoutePickerButtonBordered = false
+        toolTip = "Choose AirPlay device"
+        setAccessibilityLabel("Choose AirPlay device")
+        updateButtonColors()
     }
 
     required init?(coder: NSCoder) {
@@ -1050,11 +1062,23 @@ private final class HoverPowerImageView: NSImageView {
     }
 
     override func mouseEntered(with event: NSEvent) {
-        alphaValue = 1
+        isHovering = true
+        NSCursor.pointingHand.set()
+        updateButtonColors()
     }
 
     override func mouseExited(with event: NSEvent) {
-        alphaValue = 0.24
+        isHovering = false
+        NSCursor.arrow.set()
+        updateButtonColors()
+    }
+
+    private func updateButtonColors() {
+        let normalColor = NSColor.white.withAlphaComponent(isHovering ? 1 : 0.24)
+        setRoutePickerButtonColor(normalColor, for: .normal)
+        setRoutePickerButtonColor(.white, for: .normalHighlighted)
+        setRoutePickerButtonColor(.white, for: .active)
+        setRoutePickerButtonColor(.white, for: .activeHighlighted)
     }
 }
 
