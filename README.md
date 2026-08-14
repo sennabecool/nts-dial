@@ -41,7 +41,7 @@ Version 1.2 is the updater bootstrap release, so users of 1.1 and earlier need t
 
 ## Version
 
-v1.2
+v1.2.1
 
 ## Publishing a release
 
