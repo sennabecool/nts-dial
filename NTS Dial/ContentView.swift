@@ -7,6 +7,11 @@ private enum BundledImageCache {
     static let dialRim = load(named: "dial-rim")
     static let dialMarker = load(named: "dial-marker")
     static let mixtapesLogo = load(named: "mixtapes-logo")
+    static let airPlayIcon = loadTemplate(named: "Airplay")
+    static let airPlayOuter = loadTemplate(named: "AirplayOuter")
+    static let airPlayMiddle = loadTemplate(named: "AirplayMiddle")
+    static let airPlayInner = loadTemplate(named: "AirplayInner")
+    static let airPlayArrow = loadTemplate(named: "AirplayArrow")
     static let mixtapeIcons: [String: NSImage] = Dictionary(
         uniqueKeysWithValues: [
             "slow-focus", "expansions", "low-key", "labyrinth", "memory-lane", "sweat",
@@ -20,6 +25,12 @@ private enum BundledImageCache {
     private static func load(named name: String) -> NSImage? {
         guard let url = Bundle.main.url(forResource: name, withExtension: "svg") else { return nil }
         return NSImage(contentsOf: url)
+    }
+
+    private static func loadTemplate(named name: String) -> NSImage? {
+        let image = load(named: name)
+        image?.isTemplate = true
+        return image
     }
 }
 
@@ -1018,73 +1029,282 @@ private enum RadioDialInteraction: Equatable {
     }
 }
 
-private struct AirPlayRoutePicker: NSViewRepresentable {
+private struct AirPlayRoutePicker: View {
     let player: AVPlayer
+    @State private var isHovering = false
+    @State private var isConnected = false
+    @State private var isConnecting = false
+    @State private var isPickerPresented = false
+    @State private var connectionAnimationTask: Task<Void, Never>?
+
+    var body: some View {
+        ZStack {
+            NativeAirPlayRoutePicker(
+                player: player,
+                onConnectionChanged: handleConnectionChanged,
+                onAudioRouteChanged: handleAudioRouteChanged,
+                onPresentationChanged: handlePresentationChanged
+            )
+
+            AirPlayStatusIcon(
+                isConnected: isConnected,
+                isConnecting: isConnecting,
+                isPickerPresented: isPickerPresented,
+                isHovering: isHovering
+            )
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+        }
+        .contentShape(Rectangle())
+        .onHover { hovering in
+            isHovering = hovering
+            if hovering { NSCursor.pointingHand.set() } else { NSCursor.arrow.set() }
+        }
+        .onDisappear {
+            connectionAnimationTask?.cancel()
+        }
+    }
+
+    private func handleConnectionChanged(_ connected: Bool, confirmed _: Bool) {
+        if connected {
+            connectionAnimationTask?.cancel()
+            connectionAnimationTask = nil
+            isConnected = true
+            isConnecting = false
+        } else if !isConnecting {
+            isConnected = false
+        }
+    }
+
+    private func handleAudioRouteChanged(_ hasExternalOutput: Bool) {
+        connectionAnimationTask?.cancel()
+        connectionAnimationTask = nil
+
+        guard hasExternalOutput else {
+            isConnected = false
+            isConnecting = false
+            return
+        }
+
+        finishConnectionAnimationAfterDelay()
+    }
+
+    private func handlePresentationChanged(_ isPresented: Bool) {
+        isPickerPresented = isPresented
+
+        if isPresented {
+            connectionAnimationTask?.cancel()
+            connectionAnimationTask = nil
+            isConnected = false
+            isConnecting = true
+        } else if isConnecting {
+            finishConnectionAnimationAfterDelay()
+        }
+    }
+
+    private func finishConnectionAnimationAfterDelay() {
+        connectionAnimationTask?.cancel()
+        isConnected = false
+        isConnecting = true
+
+        connectionAnimationTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 1_500_000_000)
+            guard !Task.isCancelled else { return }
+            isConnected = true
+            isConnecting = false
+            connectionAnimationTask = nil
+        }
+    }
+}
+
+private struct AirPlayStatusIcon: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    let isConnected: Bool
+    let isConnecting: Bool
+    let isPickerPresented: Bool
+    let isHovering: Bool
+
+    var body: some View {
+        Group {
+            if isConnecting && !reduceMotion {
+                TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { timeline in
+                    let time = timeline.date.timeIntervalSinceReferenceDate
+
+                    ZStack {
+                        iconLayer(BundledImageCache.airPlayArrow, opacity: isHovering ? 1 : 0.65)
+                        waveLayer(BundledImageCache.airPlayInner, time: time, index: 0)
+                        waveLayer(BundledImageCache.airPlayMiddle, time: time, index: 1)
+                        waveLayer(BundledImageCache.airPlayOuter, time: time, index: 2)
+                    }
+                }
+            } else {
+                iconLayer(
+                    BundledImageCache.airPlayIcon,
+                    opacity: isConnected || isPickerPresented || isHovering ? 1 : (isConnecting ? 0.7 : 0.4)
+                )
+            }
+        }
+        .frame(width: 17, height: 16)
+    }
+
+    private func waveLayer(_ image: NSImage?, time: TimeInterval, index: Int) -> some View {
+        let pulse = (sin((time * 2 * .pi / 1.2) - (Double(index) * 0.9)) + 1) / 2
+
+        return iconLayer(image, opacity: 0.2 + (pulse * 0.8))
+            .scaleEffect(0.96 + (pulse * 0.04))
+    }
+
+    @ViewBuilder
+    private func iconLayer(_ image: NSImage?, opacity: Double) -> some View {
+        if let image {
+            Image(nsImage: image)
+                .renderingMode(.template)
+                .resizable()
+                .scaledToFit()
+                .foregroundStyle(.white)
+                .opacity(opacity)
+                .frame(width: 17, height: 16)
+        }
+    }
+}
+
+private struct NativeAirPlayRoutePicker: NSViewRepresentable {
+    let player: AVPlayer
+    let onConnectionChanged: (Bool, Bool) -> Void
+    let onAudioRouteChanged: (Bool) -> Void
+    let onPresentationChanged: (Bool) -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(parent: self)
+    }
 
     func makeNSView(context: Context) -> AirPlayRoutePickerView {
         let routePicker = AirPlayRoutePickerView()
         routePicker.player = player
+        routePicker.delegate = context.coordinator
+        context.coordinator.observe(player)
         return routePicker
     }
 
     func updateNSView(_ nsView: AirPlayRoutePickerView, context: Context) {
+        context.coordinator.parent = self
+
         if nsView.player !== player {
             nsView.player = player
+            context.coordinator.observe(player)
+        }
+    }
+
+    static func dismantleNSView(_ nsView: AirPlayRoutePickerView, coordinator: Coordinator) {
+        nsView.delegate = nil
+        coordinator.stopObserving()
+    }
+
+    @MainActor
+    final class Coordinator: NSObject, AVRoutePickerViewDelegate {
+        var parent: NativeAirPlayRoutePicker
+        private weak var observedPlayer: AVPlayer?
+        private var externalPlaybackObservation: NSKeyValueObservation?
+        private var audioOutputDeviceObservation: NSKeyValueObservation?
+        private var isExternalPlaybackActive = false
+        private var audioOutputDeviceUniqueID: String?
+        private var hasReceivedInitialAudioOutput = false
+        private var lastReportedConnectionState: (connected: Bool, confirmed: Bool)?
+
+        init(parent: NativeAirPlayRoutePicker) {
+            self.parent = parent
+        }
+
+        func observe(_ player: AVPlayer) {
+            guard observedPlayer !== player else { return }
+            stopObserving()
+            observedPlayer = player
+
+            externalPlaybackObservation = player.observe(
+                \.isExternalPlaybackActive,
+                options: [.initial, .new]
+            ) { [weak self] _, change in
+                let isActive = change.newValue ?? false
+                Task { @MainActor [weak self] in
+                    self?.isExternalPlaybackActive = isActive
+                    self?.reportConnectionState()
+                }
+            }
+
+            audioOutputDeviceObservation = player.observe(
+                \.audioOutputDeviceUniqueID,
+                options: [.initial, .new]
+            ) { [weak self] player, _ in
+                Task { @MainActor [weak self] in
+                    guard let self else { return }
+                    let previousDeviceID = self.audioOutputDeviceUniqueID
+                    let newDeviceID = player.audioOutputDeviceUniqueID
+                    self.audioOutputDeviceUniqueID = newDeviceID
+
+                    if self.hasReceivedInitialAudioOutput, previousDeviceID != newDeviceID {
+                        self.parent.onAudioRouteChanged(newDeviceID != nil)
+                    }
+
+                    self.hasReceivedInitialAudioOutput = true
+                    self.reportConnectionState()
+                }
+            }
+        }
+
+        func stopObserving() {
+            externalPlaybackObservation?.invalidate()
+            externalPlaybackObservation = nil
+            audioOutputDeviceObservation?.invalidate()
+            audioOutputDeviceObservation = nil
+            observedPlayer = nil
+            hasReceivedInitialAudioOutput = false
+        }
+
+        func routePickerViewWillBeginPresentingRoutes(_ routePickerView: AVRoutePickerView) {
+            parent.onPresentationChanged(true)
+        }
+
+        func routePickerViewDidEndPresentingRoutes(_ routePickerView: AVRoutePickerView) {
+            parent.onPresentationChanged(false)
+        }
+
+        private func reportConnectionState() {
+            let state = (
+                connected: isExternalPlaybackActive || audioOutputDeviceUniqueID != nil,
+                confirmed: isExternalPlaybackActive
+            )
+            guard lastReportedConnectionState?.connected != state.connected ||
+                    lastReportedConnectionState?.confirmed != state.confirmed else { return }
+            lastReportedConnectionState = state
+            parent.onConnectionChanged(state.connected, state.confirmed)
         }
     }
 }
 
 private final class AirPlayRoutePickerView: AVRoutePickerView {
-    private var trackingArea: NSTrackingArea?
-    private var isHovering = false
-
     init() {
         super.init(frame: .zero)
         isRoutePickerButtonBordered = false
         toolTip = "Choose AirPlay device"
         setAccessibilityLabel("Choose AirPlay device")
-        updateButtonColors()
+        hideSystemIcon()
     }
 
     required init?(coder: NSCoder) {
         nil
     }
 
-    override func updateTrackingAreas() {
-        super.updateTrackingAreas()
-
-        if let trackingArea {
-            removeTrackingArea(trackingArea)
-        }
-
-        let newTrackingArea = NSTrackingArea(
-            rect: .zero,
-            options: [.activeInKeyWindow, .inVisibleRect, .mouseEnteredAndExited],
-            owner: self,
-            userInfo: nil
-        )
-        addTrackingArea(newTrackingArea)
-        trackingArea = newTrackingArea
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        hideSystemIcon()
     }
 
-    override func mouseEntered(with event: NSEvent) {
-        isHovering = true
-        NSCursor.pointingHand.set()
-        updateButtonColors()
-    }
-
-    override func mouseExited(with event: NSEvent) {
-        isHovering = false
-        NSCursor.arrow.set()
-        updateButtonColors()
-    }
-
-    private func updateButtonColors() {
-        let normalColor = NSColor.white.withAlphaComponent(isHovering ? 1 : 0.24)
-        setRoutePickerButtonColor(normalColor, for: .normal)
-        setRoutePickerButtonColor(.white, for: .normalHighlighted)
-        setRoutePickerButtonColor(.white, for: .active)
-        setRoutePickerButtonColor(.white, for: .activeHighlighted)
+    private func hideSystemIcon() {
+        setRoutePickerButtonColor(.clear, for: .normal)
+        setRoutePickerButtonColor(.clear, for: .normalHighlighted)
+        setRoutePickerButtonColor(.clear, for: .active)
+        setRoutePickerButtonColor(.clear, for: .activeHighlighted)
     }
 }
 
