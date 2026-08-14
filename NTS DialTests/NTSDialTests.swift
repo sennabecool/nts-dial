@@ -2,6 +2,27 @@ import Foundation
 import XCTest
 @testable import NTS_Dial
 
+final class UpdateConfigurationTests: XCTestCase {
+    func testHostAppContainsSecureSparkleConfiguration() throws {
+        let info = try XCTUnwrap(Bundle.main.infoDictionary)
+
+        XCTAssertEqual(
+            info["SUFeedURL"] as? String,
+            "https://github.com/sennabecool/nts-dial/releases/latest/download/appcast.xml"
+        )
+        XCTAssertEqual(
+            info["SUPublicEDKey"] as? String,
+            "U/h5sCuAlyMBCqFwUTeOslqzpJxt6ywbnD33yF9WslU="
+        )
+        XCTAssertEqual(info["SUEnableAutomaticChecks"] as? Bool, true)
+        XCTAssertEqual(info["SUAutomaticallyUpdate"] as? Bool, false)
+        XCTAssertEqual(info["SUEnableInstallerLauncherService"] as? Bool, true)
+        XCTAssertEqual(info["SURequireSignedFeed"] as? Bool, true)
+        XCTAssertEqual(info["SUVerifyUpdateBeforeExtraction"] as? Bool, true)
+        XCTAssertNil(info["SUEnableDownloaderService"])
+    }
+}
+
 final class PlaylistParserTests: XCTestCase {
     func testReturnsFirstHTTPSStreamIgnoringCommentsAndWhitespace() throws {
         let bundle = try makeBundle(

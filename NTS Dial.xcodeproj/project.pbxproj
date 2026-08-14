@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		F1A4C0DEB9E14B30A0010001 /* NTS Dial/Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F1A4C0DEB9E14B30A0010002 /* NTS Dial/Assets.xcassets */; };
+		F2A100013100000000000001 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = F2A100023100000000000001 /* Sparkle */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -31,6 +32,7 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Assets.xcassets,
+				Info.plist,
 			);
 			target = E9CF38E230246BB100847F5B /* NTS Dial */;
 		};
@@ -56,6 +58,7 @@
 		E9CF38E030246BB100847F5B /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			files = (
+				F2A100013100000000000001 /* Sparkle in Frameworks */,
 			);
 		};
 		F10000053000000000000001 /* Frameworks */ = {
@@ -110,6 +113,9 @@
 				E9CF38E530246BB100847F5B /* NTS Dial */,
 			);
 			name = "NTS Dial";
+			packageProductDependencies = (
+				F2A100023100000000000001 /* Sparkle */,
+			);
 			productName = "NTS Dial";
 			productReference = E9CF38E330246BB100847F5B /* NTS Dial.app */;
 			productType = "com.apple.product-type.application";
@@ -163,6 +169,9 @@
 			);
 			mainGroup = E9CF38DA30246BB100847F5B;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				F2A100033100000000000001 /* XCRemoteSwiftPackageReference "Sparkle" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = E9CF38E430246BB100847F5B /* Products */;
 			projectDirPath = "";
@@ -341,10 +350,8 @@
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
-				INFOPLIST_KEY_LSUIElement = YES;
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "NTS Dial/Info.plist";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -376,10 +383,8 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
-				INFOPLIST_KEY_LSUIElement = YES;
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "NTS Dial/Info.plist";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -457,6 +462,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		F2A100033100000000000001 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = exactVersion;
+				version = 2.9.4;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		F2A100023100000000000001 /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = F2A100033100000000000001 /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = E9CF38DB30246BB100847F5B /* Project object */;
 	validationLevel = 1;

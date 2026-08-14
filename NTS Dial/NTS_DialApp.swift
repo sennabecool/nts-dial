@@ -4,11 +4,13 @@ import SwiftUI
 @main
 struct NTS_DialApp: App {
     @StateObject private var radioPlayer = RadioPlayer()
+    @StateObject private var appUpdater = AppUpdater()
 
     var body: some Scene {
         MenuBarExtra {
             ContentView()
                 .environmentObject(radioPlayer)
+                .environmentObject(appUpdater)
                 .frame(width: 542, height: 362)
         } label: {
             MenuBarStatusIcon(

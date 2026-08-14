@@ -25,6 +25,7 @@ private enum BundledImageCache {
 
 struct ContentView: View {
     @EnvironmentObject private var radioPlayer: RadioPlayer
+    @EnvironmentObject private var appUpdater: AppUpdater
 
     private static let appVersion = Bundle.main.object(
         forInfoDictionaryKey: "CFBundleShortVersionString"
@@ -56,6 +57,11 @@ struct ContentView: View {
         .contextMenu {
             Button("Version \(Self.appVersion)") {}
                 .disabled(true)
+
+            Button("Check for Updates…") {
+                appUpdater.checkForUpdates()
+            }
+            .disabled(!appUpdater.canCheckForUpdates)
 
             Divider()
 
@@ -1086,5 +1092,6 @@ struct ContentView_Previews: PreviewProvider {
     static var previews: some View {
         ContentView()
             .environmentObject(RadioPlayer())
+            .environmentObject(AppUpdater(startingUpdater: false))
     }
 }

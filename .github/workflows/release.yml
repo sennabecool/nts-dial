@@ -1,0 +1,179 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: nts-dial-stable-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: macos-26
+    timeout-minutes: 45
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
+      GH_TOKEN: ${{ github.token }}
+
+    steps:
+      - name: Check out tagged source
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Validate tag and release state
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          release_tag="$GITHUB_REF_NAME"
+          if [[ ! "$release_tag" =~ ^v([0-9]+)\.([0-9]+)(\.([0-9]+))?$ ]]; then
+            echo "Release tag must be vX.Y or vX.Y.Z: $release_tag" >&2
+            exit 1
+          fi
+
+          release_version="${release_tag#v}"
+          IFS=. read -r release_major release_minor release_patch <<< "$release_version"
+          release_build_version="$release_major.$release_minor.${release_patch:-0}"
+
+          git fetch origin main --no-tags
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "Release tags must point to a commit contained in main." >&2
+            exit 1
+          fi
+
+          if gh release view "$release_tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "A GitHub release already exists for $release_tag." >&2
+            exit 1
+          fi
+
+          echo "tag=$release_tag" >> "$GITHUB_OUTPUT"
+          echo "version=$release_version" >> "$GITHUB_OUTPUT"
+          echo "build_version=$release_build_version" >> "$GITHUB_OUTPUT"
+
+      - name: Run unit tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcodebuild test \
+            -project "NTS Dial.xcodeproj" \
+            -scheme "NTS Dial" \
+            -configuration Debug \
+            -destination "platform=macOS" \
+            -derivedDataPath "$RUNNER_TEMP/nts-dial-tests-$GITHUB_RUN_ID" \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY=- \
+            DEVELOPMENT_TEAM=
+
+      - name: Build and validate release DMG
+        id: package
+        shell: bash
+        run: |
+          set -euo pipefail
+          release_output="$RUNNER_TEMP/nts-dial-release-$GITHUB_RUN_ID"
+          release_derived_data="$RUNNER_TEMP/nts-dial-derived-$GITHUB_RUN_ID"
+          scripts/package-release.sh \
+            "${{ steps.version.outputs.version }}" \
+            "${{ steps.version.outputs.build_version }}" \
+            "$release_output" \
+            "$release_derived_data"
+          release_dmg="$release_output/NTS.Dial-${{ steps.version.outputs.version }}.dmg"
+          echo "dmg=$release_dmg" >> "$GITHUB_OUTPUT"
+          echo "derived_data=$release_derived_data" >> "$GITHUB_OUTPUT"
+
+      - name: Generate signed appcast and release notes
+        id: appcast
+        shell: bash
+        env:
+          SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "$SPARKLE_ED_PRIVATE_KEY" ]]; then
+            echo "SPARKLE_ED_PRIVATE_KEY is not configured." >&2
+            exit 1
+          fi
+
+          release_tag="${{ steps.version.outputs.tag }}"
+          release_version="${{ steps.version.outputs.version }}"
+          release_build_version="${{ steps.version.outputs.build_version }}"
+          release_asset_directory="$RUNNER_TEMP/nts-dial-appcast-$GITHUB_RUN_ID"
+          release_notes="$release_asset_directory/NTS.Dial-$release_version.md"
+          release_dmg="$release_asset_directory/NTS.Dial-$release_version.dmg"
+          release_key="$RUNNER_TEMP/nts-dial-sparkle-key-$GITHUB_RUN_ID"
+          release_download_prefix="https://github.com/$GITHUB_REPOSITORY/releases/download/$release_tag"
+          generate_appcast="$(
+            find "${{ steps.package.outputs.derived_data }}/SourcePackages/artifacts" \
+              -type f -name generate_appcast -print -quit
+          )"
+
+          if [[ -z "$generate_appcast" || ! -x "$generate_appcast" ]]; then
+            echo "Sparkle generate_appcast tool was not found." >&2
+            exit 1
+          fi
+
+          mkdir -p "$release_asset_directory"
+          cp "${{ steps.package.outputs.dmg }}" "$release_dmg"
+          printf '%s' "$SPARKLE_ED_PRIVATE_KEY" > "$release_key"
+          chmod 600 "$release_key"
+          trap 'rm -f "$release_key"' EXIT
+
+          gh api \
+            --method POST \
+            "repos/$GITHUB_REPOSITORY/releases/generate-notes" \
+            -f tag_name="$release_tag" \
+            -f target_commitish="$GITHUB_SHA" \
+            --jq .body > "$release_notes"
+
+          "$generate_appcast" \
+            --ed-key-file "$release_key" \
+            --download-url-prefix "$release_download_prefix/" \
+            --release-notes-url-prefix "$release_download_prefix/" \
+            --link "https://github.com/$GITHUB_REPOSITORY/releases/tag/$release_tag" \
+            --maximum-versions 1 \
+            --maximum-deltas 0 \
+            -o "$release_asset_directory/appcast.xml" \
+            "$release_asset_directory"
+
+          rm -f "$release_key"
+          trap - EXIT
+
+          appcast="$release_asset_directory/appcast.xml"
+          xmllint --noout "$appcast"
+          grep -Fq "<sparkle:version>$release_build_version</sparkle:version>" "$appcast"
+          grep -Fq "$release_download_prefix/$(basename "$release_dmg")" "$appcast"
+          grep -Fq 'sparkle:edSignature=' "$appcast"
+          grep -Fq 'sparkle-signatures:' "$appcast"
+
+          echo "appcast=$appcast" >> "$GITHUB_OUTPUT"
+          echo "notes=$release_notes" >> "$GITHUB_OUTPUT"
+          echo "dmg=$release_dmg" >> "$GITHUB_OUTPUT"
+
+      - name: Create complete draft release
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release create "${{ steps.version.outputs.tag }}" \
+            "${{ steps.appcast.outputs.dmg }}#NTS Dial ${{ steps.version.outputs.version }} (DMG)" \
+            "${{ steps.appcast.outputs.appcast }}#Sparkle update feed" \
+            "${{ steps.appcast.outputs.notes }}#Release notes" \
+            --repo "$GITHUB_REPOSITORY" \
+            --verify-tag \
+            --draft \
+            --title "NTS Dial v${{ steps.version.outputs.version }}" \
+            --notes-file "${{ steps.appcast.outputs.notes }}"
+
+      - name: Publish release
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release edit "${{ steps.version.outputs.tag }}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --draft=false \
+            --latest
